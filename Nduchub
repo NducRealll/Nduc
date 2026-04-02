@@ -1,0 +1,224 @@
+-- ===== SIÊU FIX LAG - XÓA 100% MAP =====
+-- Tắt toàn bộ hiệu ứng đồ họa
+game.Lighting.GlobalShadows = false
+game.Lighting.FogEnd = 0
+game.Lighting.FogStart = 999999
+game.Lighting.Brightness = 0
+game.Lighting.ClockTime = 12
+game.Lighting.OutdoorAmbient = Color3.new(0, 0, 0)
+game.Lighting.Ambient = Color3.new(0, 0, 0)
+game.Lighting.ColorShift_Bottom = Color3.new(0, 0, 0)
+game.Lighting.ColorShift_Top = Color3.new(0, 0, 0)
+
+-- Xóa toàn bộ lighting effects
+for _, v in pairs(game.Lighting:GetChildren()) do
+    if v:IsA("Bloom") or v:IsA("BlurEffect") or v:IsA("SunRays") or 
+       v:IsA("ColorCorrectionEffect") or v:IsA("DepthOfField") then
+        v:Destroy()
+    end
+end
+
+-- Tắt hiệu ứng thời tiết
+game.Lighting:ClearAllChildren()
+
+-- Giảm chất lượng render tối đa
+settings().Rendering.QualityLevel = 1
+settings().Rendering.EffectsQuality = 0
+settings().Rendering.PhysicsEnvironmentalThrottle = Enum.EnviromentalPhysicsThrottle.Disabled
+
+-- Tắt âm thanh toàn bộ
+game:GetService("SoundService").RespectFilteringEnabled = false
+for _, v in pairs(game.Workspace:GetDescendants()) do
+    if v:IsA("Sound") then
+        v:Stop()
+        v:Destroy()
+    end
+end
+
+-- Hàm kiểm tra giữ lại part quan trọng (chỉ giữ player và quái)
+local function shouldKeepPart(part)
+    local parent = part.Parent
+    local maxDepth = 10
+    local depth = 0
+    
+    while parent and depth < maxDepth do
+        -- Giữ character, NPC, quái, boss
+        if parent:FindFirstChild("Humanoid") then
+            return true
+        end
+        
+        local nameLower = parent.Name:lower()
+        if nameLower:match("npc") or nameLower:match("boss") or 
+           nameLower:match("monster") or nameLower:match("zombie") or 
+           nameLower:match("enemy") or nameLower:match("player") or
+           nameLower:match("character") or nameLower:match("pet") or
+           nameLower:match("humanoid") then
+            return true
+        end
+        
+        parent = parent.Parent
+        depth = depth + 1
+    end
+    return false
+end
+
+-- Xóa 100% map (chỉ giữ quái, boss, player)
+local deleted = 0
+local total = 0
+
+-- Xóa toàn bộ BasePart không quan trọng
+for _, v in pairs(game.Workspace:GetDescendants()) do
+    if v:IsA("BasePart") then
+        total = total + 1
+        if not shouldKeepPart(v) then
+            v:Destroy()
+            deleted = deleted + 1
+        end
+    end
+end
+
+print("Đã xóa " .. deleted .. "/" .. total .. " BasePart")
+
+-- Xóa toàn bộ vật thể trang trí
+local decorDeleted = 0
+for _, v in pairs(game.Workspace:GetDescendants()) do
+    if v:IsA("Decal") or v:IsA("Texture") or v:IsA("ParticleEmitter") or 
+       v:IsA("Fire") or v:IsA("Smoke") or v:IsA("Sparkles") or
+       v:IsA("Trail") or v:IsA("Beam") or v:IsA("PointLight") or
+       v:IsA("SpotLight") or v:IsA("SurfaceLight") or v:IsA("BillboardGui") or
+       v:IsA("SelectionBox") or v:IsA("SelectionSphere") then
+        v:Destroy()
+        decorDeleted = decorDeleted + 1
+    end
+end
+
+print("Đã xóa " .. decorDeleted .. " vật thể trang trí")
+
+-- Xóa mesh và union
+local meshDeleted = 0
+for _, v in pairs(game.Workspace:GetDescendants()) do
+    if v:IsA("MeshPart") or v:IsA("UnionOperation") or v:IsA("CylinderMesh") or
+       v:IsA("BlockMesh") or v:IsA("SpecialMesh") or v:IsA("FileMesh") then
+        if not shouldKeepPart(v) then
+            v:Destroy()
+            meshDeleted = meshDeleted + 1
+        end
+    end
+end
+
+print("Đã xóa " .. meshDeleted .. " mesh/union")
+
+-- Xóa toàn bộ terrain
+local terrain = game.Workspace.Terrain
+if terrain then
+    terrain:Clear()
+    print("Đã xóa terrain")
+end
+
+-- Xóa toàn bộ model rỗng và không cần thiết
+for _, v in pairs(game.Workspace:GetDescendants()) do
+    if v:IsA("Model") then
+        local hasHumanoid = v:FindFirstChild("Humanoid")
+        local isImportant = false
+        
+        -- Kiểm tra tên model
+        local nameLower = v.Name:lower()
+        if nameLower:match("npc") or nameLower:match("boss") or 
+           nameLower:match("monster") or nameLower:match("player") or
+           nameLower:match("character") then
+            isImportant = true
+        end
+        
+        if not hasHumanoid and not isImportant then
+            v:Destroy()
+        end
+    end
+end
+
+-- Tắt tất cả hiệu ứng GUI không cần thiết
+for _, v in pairs(game.CoreGui:GetDescendants()) do
+    if v:IsA("Frame") or v:IsA("ImageLabel") or v:IsA("TextLabel") or
+       v:IsA("ImageButton") or v:IsA("TextButton") then
+        if not v.Name:lower():match("health") and not v.Name:lower():match("hp") then
+            v.Visible = false
+        end
+    end
+end
+
+-- Tối ưu hóa camera
+local camera = workspace.CurrentCamera
+if camera then
+    camera.FieldOfView = 60
+    camera.CameraType = Enum.CameraType.Custom
+end
+
+-- Tắt physics không cần thiết
+game.Workspace.Gravity = 50
+game.Workspace.GlobalWind = Vector3.new(0, 0, 0)
+game.Workspace.AirDensity = 0
+
+-- Xóa animation trên quái để giảm CPU
+for _, v in pairs(game.Workspace:GetDescendants()) do
+    if v:IsA("Animator") then
+        v:Destroy()
+    end
+    if v:IsA("Animation") then
+        v:Destroy()
+    end
+end
+
+-- Tắt collision trên tất cả part còn lại
+for _, v in pairs(game.Workspace:GetDescendants()) do
+    if v:IsA("BasePart") then
+        v.CanCollide = false
+        v.Material = Enum.Material.SmoothPlastic
+        v.Reflectance = 0
+        v.Transparency = 0
+    end
+end
+
+-- Tối ưu streaming
+pcall(function()
+    game:GetService("StreamingService").TargetFrameRate = 24
+    game:GetService("RunService").RenderStepped:Wait()
+end)
+
+-- Tắt các dịch vụ không cần thiết
+pcall(function()
+    game:GetService("Chat"):ClearAllChildren()
+    game:GetService("Players").ChatterDelay = 0
+end)
+
+-- Garbage collection cực mạnh
+local function cleanMemory()
+    collectgarbage("collect")
+    collectgarbage("collect")
+    collectgarbage("setpause", 100)
+    collectgarbage("setstepmul", 5000)
+end
+
+-- Vòng lặp dọn dẹp bộ nhớ liên tục
+spawn(function()
+    while true do
+        wait(15) -- 15 giây
+        cleanMemory()
+        
+        -- Xóa các part mới sinh ra
+        for _, v in pairs(game.Workspace:GetDescendants()) do
+            if v:IsA("BasePart") and not shouldKeepPart(v) then
+                v:Destroy()
+            end
+            if v:IsA("ParticleEmitter") or v:IsA("Fire") or v:IsA("Smoke") then
+                v:Destroy()
+            end
+        end
+    end
+end)
+
+-- In kết quả
+print("========================================")
+print("=== SIÊU FIX LAG HOÀN TẤT ===")
+print("Đã xóa 100% map (chỉ giữ player và quái)")
+print("Đồ họa đã được giảm xuống mức tối thiểu")
+print("FPS sẽ tăng đáng kể!")
+print("========================================")
